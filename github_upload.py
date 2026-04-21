@@ -103,16 +103,16 @@ async def upload_asset_with_progress(release, file_path):
     async with aiohttp.ClientSession() as session:
         upload_url = release.upload_url.replace("{?name,label}", f"?name={filename}")
 
-        with open(file_path, "rb") as raw, tqdm(
-            total=file_size,
-            unit="B",
-            unit_scale=True,
-            desc=f"Uploading {short}",
-        ) as progress:
+        async def _send():
+            with open(file_path, "rb") as raw, tqdm(
+                total=file_size,
+                unit="B",
+                unit_scale=True,
+                desc=f"Uploading {short}",
+            ) as progress:
 
-            wrapped = ProgressFile(raw, progress)
+                wrapped = ProgressFile(raw, progress)
 
-            async def _send():
                 headers = {
                     "Authorization": f"token {GITHUB_TOKEN}",
                     "Content-Type": "application/octet-stream",
@@ -123,18 +123,15 @@ async def upload_asset_with_progress(release, file_path):
                     if resp.status in (200, 201):
                         return
 
-                    # Read GitHub error JSON
                     text = await resp.text()
 
-                    # Pretty handling: asset already exists
                     if resp.status == 422 and "already_exists" in text:
                         tqdm.write(f"Skipping existing asset: {filename}")
                         return
 
-                    # Any other error → raise clean message
                     raise Exception(f"Upload failed ({resp.status}) for {filename}")
-            await retry_async(_send)
 
+        await retry_async(_send)
 
 # -----------------------------
 # PROCESS A SINGLE FILE
