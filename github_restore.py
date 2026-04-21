@@ -11,6 +11,7 @@ from github.GithubException import UnknownObjectException
 # -----------------------------
 GITHUB_TOKEN = "ghp_asdf"
 REPO_NAME = "tecepeipe/Tsundoku"
+TAG = "Filmez"  # or whatever your job folder name was
 OUTPUT_ROOT = r"Downloads"
 
 gh = Github(auth=Auth.Token(GITHUB_TOKEN))
@@ -142,5 +143,4 @@ async def restore_job(tag):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    TAG = "Filmez"  # or whatever your job folder name was
     asyncio.run(restore_job(TAG))
