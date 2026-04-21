@@ -11,12 +11,19 @@ from github.GithubException import UnknownObjectException
 # -----------------------------
 GITHUB_TOKEN = "ghp_asdf"
 REPO_NAME = "tecepeipe/Tsundoku"
-TAG = "Filmez"  # or whatever your job folder name was
-OUTPUT_ROOT = r"Downloads"
+TAG = "Fonts"  # Release job
+OUTPUT_ROOT = r"F:\Fonts"
 
 gh = Github(auth=Auth.Token(GITHUB_TOKEN))
 repo = gh.get_repo(REPO_NAME)
 
+
+# -----------------------------
+# NORMALIZE NAMES (NO SPACES)
+# -----------------------------
+def normalize_name(name: str) -> str:
+    # GitHub replaces spaces with dots in asset names
+    return name.replace(" ", ".")
 
 # -----------------------------
 # DOWNLOAD A SINGLE ASSET
@@ -25,9 +32,12 @@ async def download_asset(session, asset, dest_path):
     if os.path.exists(dest_path):
         return  # skip existing
 
-    url = asset.browser_download_url
+    url = asset.url
+    headers = {"Accept": "application/octet-stream",
+               "Authorization": f"token {GITHUB_TOKEN}",
+    }
 
-    async with session.get(url) as resp:
+    async with session.get(url, headers=headers) as resp:
         if resp.status != 200:
             raise Exception(f"Failed to download {asset.name}: {resp.status}")
 
@@ -100,7 +110,7 @@ async def restore_job(tag):
         manifest = json.load(mf)
 
     # Build lookup for assets
-    assets = {a.name: a for a in release.get_assets()}
+    assets = {normalize_name(a.name): a for a in release.get_assets()}
 
     # Download all assets
     async with aiohttp.ClientSession() as session:
@@ -113,6 +123,8 @@ async def restore_job(tag):
             file_groups = {}
 
             for name in files:
+                normalized = normalize_name(name)
+
                 if ".part" in name:
                     base = name.split(".part")[0]
                     file_groups.setdefault(base, []).append(name)
@@ -124,12 +136,14 @@ async def restore_job(tag):
 
                 # Download each part
                 for part in parts:
-                    if part not in assets:
-                        print(f"Missing asset on GitHub: {part}")
+                    normalized_part = normalize_name(part)
+
+                    if normalized_part not in assets:
+                        print(f"Missing asset on GitHub: {part} (normalized: {normalized_part})")
                         continue
 
                     dest_path = os.path.join(folder_path, part)
-                    await download_asset(session, assets[part], dest_path)
+                    await download_asset(session, assets[normalized_part], dest_path)
 
                 # Merge if split
                 if len(parts) > 1:
