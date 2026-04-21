@@ -87,10 +87,12 @@ def split_file(filepath, temp_dir):
 # -----------------------------
 # SHORTEN FILENAME FOR DISPLAY
 # -----------------------------
-def shorten_filename(name, start=35, end=20):
+def normalize_filename(name, start=35, end=20):
+    if len(name) > start + end + 3:
+        return name[:start] + "..." + name[-end:]
     if len(name) <= start + end + 3:
-        return name
-    return name[:start] + "..." + name[-end:]
+        return name.ljust(58)
+    return name
 
 # -----------------------------
 # UPLOAD ASSET WITH PROGRESS
@@ -98,7 +100,7 @@ def shorten_filename(name, start=35, end=20):
 async def upload_asset_with_progress(release, file_path):
     filename = os.path.basename(file_path)
     file_size = os.path.getsize(file_path)
-    short = shorten_filename(filename)
+    short = normalize_filename(filename)
 
     async with aiohttp.ClientSession() as session:
         upload_url = release.upload_url.replace("{?name,label}", f"?name={filename}")
