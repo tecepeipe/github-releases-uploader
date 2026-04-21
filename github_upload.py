@@ -18,7 +18,7 @@ REPO_NAME = "tecepeipe/Tsundoku"
 MAX_SIZE = 1850 * 1024 * 1024       # 1.85GB split size
 CHUNK_SIZE = 4 * 1024 * 1024        # 4MB read chunks
 MAX_PARALLEL = 4                    # parallel uploads
-ROOT = r"D:\Filmez"
+ROOT = r"D:\Filmez"                # Release tag
 
 gh = Github(auth=Auth.Token(GITHUB_TOKEN))
 repo = gh.get_repo(REPO_NAME)
