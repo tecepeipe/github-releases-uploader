@@ -18,6 +18,7 @@ REPO_NAME = "tecepeipe/Tsundoku"
 MAX_SIZE = 1850 * 1024 * 1024       # 1.85GB split size
 CHUNK_SIZE = 4 * 1024 * 1024        # 4MB read chunks
 MAX_PARALLEL = 4                    # parallel uploads
+ROOT = r"D:\Filmez"
 
 gh = Github(auth=Auth.Token(GITHUB_TOKEN))
 repo = gh.get_repo(REPO_NAME)
@@ -222,5 +223,4 @@ async def process_job(root_folder):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    ROOT = r"D:\Filmez"
     asyncio.run(process_job(ROOT))
