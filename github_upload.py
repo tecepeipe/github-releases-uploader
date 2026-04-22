@@ -24,7 +24,7 @@ gh = Github(auth=Auth.Token(GITHUB_TOKEN))
 repo = gh.get_repo(REPO_NAME)
 
 timeout = aiohttp.ClientTimeout(
-    total=120,          # allow long uploads
+    total=None,          # allow long uploads
     sock_connect=60,     # 60s to connect
     sock_read=None       # no read timeout during upload
 )
