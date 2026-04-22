@@ -17,13 +17,35 @@ OUTPUT_ROOT = r"F:\Fonts"
 gh = Github(auth=Auth.Token(GITHUB_TOKEN))
 repo = gh.get_repo(REPO_NAME)
 
+# -----------------------------
+# FUZZY LOGIC FOR FILE MATCHING
+# -----------------------------
+def normalize_for_match(name: str) -> str:
+    name = name.lower()
+    name = unicodedata.normalize("NFKD", name)
+    name = re.sub(r"\.[a-z0-9]{1,5}$", "", name)  # remove extension
+    name = re.sub(r"[^\w]+", " ", name)           # punctuation → space
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
 
-# -----------------------------
-# NORMALIZE NAMES (NO SPACES)
-# -----------------------------
-def normalize_name(name: str) -> str:
-    # GitHub replaces spaces with dots in asset names
-    return name.replace(" ", ".")
+def fuzzy_ratio(a: str, b: str) -> float:
+    return SequenceMatcher(None, a, b).ratio() * 100
+
+def fuzzy_match(a: str, b: str, threshold=85.0) -> bool:
+    return fuzzy_ratio(normalize_for_match(a), normalize_for_match(b)) >= threshold
+
+def find_best_asset(name: str, assets):
+    best = None
+    best_score = 0
+    target = normalize_for_match(name)
+
+    for asset in assets:
+        score = fuzzy_ratio(target, normalize_for_match(asset.name))
+        if score > best_score:
+            best_score = score
+            best = asset
+
+    return best if best_score >= 85 else None
 
 # -----------------------------
 # DOWNLOAD A SINGLE ASSET
@@ -109,8 +131,8 @@ async def restore_job(tag):
     with open(manifest_path, "r", encoding="utf-8") as mf:
         manifest = json.load(mf)
 
-    # Build lookup for assets
-    assets = {normalize_name(a.name): a for a in release.get_assets()}
+    # Build list of assets (no dict)
+    asset_list = list(release.get_assets())
 
     # Download all assets
     async with aiohttp.ClientSession() as session:
@@ -123,8 +145,6 @@ async def restore_job(tag):
             file_groups = {}
 
             for name in files:
-                normalized = normalize_name(name)
-
                 if ".part" in name:
                     base = name.split(".part")[0]
                     file_groups.setdefault(base, []).append(name)
@@ -136,14 +156,14 @@ async def restore_job(tag):
 
                 # Download each part
                 for part in parts:
-                    normalized_part = normalize_name(part)
+                    asset = find_best_asset(part, asset_list)
 
-                    if normalized_part not in assets:
-                        print(f"Missing asset on GitHub: {part} (normalized: {normalized_part})")
+                    if not asset:
+                        print(f"Missing asset on GitHub: {part}")
                         continue
 
                     dest_path = os.path.join(folder_path, part)
-                    await download_asset(session, assets[normalized_part], dest_path)
+                    await download_asset(session, asset, dest_path)
 
                 # Merge if split
                 if len(parts) > 1:
