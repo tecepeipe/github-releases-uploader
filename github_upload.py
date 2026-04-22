@@ -7,6 +7,7 @@ import random
 import aiohttp
 import json
 from tqdm import tqdm
+from urllib.parse import quote
 from github import Auth, Github  # requires PyGithub
 from github.GithubException import UnknownObjectException
 
@@ -109,7 +110,8 @@ async def upload_asset_with_progress(release, file_path):
     short = normalize_filename(filename)
 
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        upload_url = release.upload_url.replace("{?name,label}", f"?name={filename}")
+        safe_name = quote(filename)
+        upload_url = release.upload_url.replace("{?name,label}", f"?name={safe_name}")
 
         async def _send():
             with open(file_path, "rb") as raw, tqdm(
