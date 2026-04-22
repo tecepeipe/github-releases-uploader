@@ -25,7 +25,7 @@ gh = Github(auth=Auth.Token(GITHUB_TOKEN))
 repo = gh.get_repo(REPO_NAME)
 
 timeout = aiohttp.ClientTimeout(
-    total=None,          # allow long uploads
+    total=None,           # allow long uploads
     sock_connect=60,     # 60s to connect
     sock_read=None       # no read timeout during upload
 )
@@ -47,7 +47,6 @@ class ProgressFile(io.BufferedReader):
         if chunk:
             self.progress.update(len(chunk))
         return chunk
-
 
 # -----------------------------
 # RETRY FAILED UPLOADS
@@ -102,6 +101,42 @@ def normalize_filename(name, start=35, end=20):
     return name
 
 # -----------------------------
+# FUZZY LOGIC FOR FILE MATCHING
+# -----------------------------
+def normalize_for_match(name: str) -> str:
+    # Lowercase
+    name = name.lower()
+
+    # Remove extension
+    name = re.sub(r"\.[a-z0-9]{1,5}$", "", name)
+
+    # Normalize unicode (fixes en-dash/em-dash)
+    name = unicodedata.normalize("NFKD", name)
+
+    # Replace punctuation with spaces
+    name = re.sub(r"[^\w]+", " ", name)
+
+    # Collapse multiple spaces
+    name = re.sub(r"\s+", " ", name).strip()
+
+    return name
+
+def fuzzy_ratio(a: str, b: str) -> float:
+    return SequenceMatcher(None, a, b).ratio() * 100
+
+def fuzzy_match(a: str, b: str, threshold: float = 85.0) -> bool:
+    na = normalize_for_match(a)
+    nb = normalize_for_match(b)
+    score = fuzzy_ratio(na, nb)
+    return score >= threshold
+
+def asset_exists(asset_name, existing_assets):
+    for existing in existing_assets:
+        if fuzzy_match(asset_name, existing):
+            return True
+    return False
+
+# -----------------------------
 # UPLOAD ASSET WITH PROGRESS
 # -----------------------------
 async def upload_asset_with_progress(release, file_path):
@@ -143,6 +178,7 @@ async def upload_asset_with_progress(release, file_path):
 
         await retry_async(_send)
 
+
 # -----------------------------
 # PROCESS A SINGLE FILE
 # -----------------------------
@@ -156,7 +192,8 @@ async def process_single_file(full_path, folder_name, release, existing_assets, 
             # Record the actual asset name in manifest
             manifest[folder_name].append(asset_name)
 
-            if asset_name in existing_assets:
+            if asset_exists(asset_name, existing_assets):
+                #tqdm.write(f"Skipping existing asset (fuzzy match): {asset_name}")
                 continue
 
             await upload_asset_with_progress(release, part)
@@ -191,7 +228,7 @@ async def process_job(root_folder):
         if folder == root_folder:
             continue
 
-        folder_name = os.path.basename(folder)
+        folder_name = os.path.relpath(folder, root_folder)
         manifest.setdefault(folder_name, [])
 
         for file in files:
