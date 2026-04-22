@@ -136,7 +136,7 @@ async def upload_asset_with_progress(release, file_path):
                     text = await resp.text()
 
                     if resp.status == 422 and "already_exists" in text:
-                        tqdm.write(f"Skipping existing asset: {filename}")
+                        #tqdm.write(f"Skipping existing asset: {filename}")
                         return
 
                     raise Exception(f"Upload failed ({resp.status}) for {filename}")
