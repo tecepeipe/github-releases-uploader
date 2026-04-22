@@ -23,6 +23,12 @@ ROOT = r"D:\Filmez"                # Release tag
 gh = Github(auth=Auth.Token(GITHUB_TOKEN))
 repo = gh.get_repo(REPO_NAME)
 
+timeout = aiohttp.ClientTimeout(
+    total=120,          # allow long uploads
+    sock_connect=60,     # 60s to connect
+    sock_read=None       # no read timeout during upload
+)
+
 # -----------------------------
 # PROGRESS FILE WRAPPER 
 # -----------------------------
@@ -102,7 +108,7 @@ async def upload_asset_with_progress(release, file_path):
     file_size = os.path.getsize(file_path)
     short = normalize_filename(filename)
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=timeout) as session:
         upload_url = release.upload_url.replace("{?name,label}", f"?name={filename}")
 
         async def _send():
